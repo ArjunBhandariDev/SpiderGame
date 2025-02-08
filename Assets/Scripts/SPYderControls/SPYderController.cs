@@ -1,16 +1,15 @@
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class SPYderController : MonoBehaviour
 {
-    public IKInsectController insectController;
-
     public float movementSpeed = 2.0f;
-    public float rotationSpeed = 200f;
+    public float rotationSpeed = 10f;
 
     private Vector3 moveDirection = Vector3.zero;
-    private bool isMoving = false;
     private SPYderControls playerInput;
+    private Rigidbody spiderRb;
 
     private void OnEnable()
     {
@@ -24,42 +23,36 @@ public class SPYderController : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(MoveCoroutine());
+        spiderRb = GetComponent<Rigidbody>();
+        spiderRb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
     }
 
     private void Update()
     {
         Vector2 moveInput = playerInput.Player.Move.ReadValue<Vector2>();
-
         moveDirection = new Vector3(moveInput.x, 0, moveInput.y).normalized;
-
-        isMoving = moveDirection.magnitude > 0;
     }
 
-    private IEnumerator MoveCoroutine()
+    private void FixedUpdate()
     {
-        while (true)
-        {
-            if (isMoving)
-            {
-                MoveInsect();
-            }
-            else
-            {
-                insectController.AgentMove(Vector3.zero);
-            }
-            yield return new WaitForSeconds(0.02f);
-        }
+        MoveInsect();
     }
 
     private void MoveInsect()
     {
         if (moveDirection != Vector3.zero)
         {
+            // Rotate towards movement direction
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
+
+            // Move using Rigidbody
+            spiderRb.linearVelocity = new Vector3(moveDirection.x * movementSpeed, spiderRb.linearVelocity.y, moveDirection.z * movementSpeed);
         }
-        insectController.AgentMove(moveDirection * movementSpeed * Time.deltaTime);
+        else
+        {
+            spiderRb.linearVelocity = new Vector3(0, spiderRb.linearVelocity.y, 0);
+        }
     }
 
     private void OnDisable()
